@@ -1,0 +1,148 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title></title>
+    <script src="js/worker.js"></script>
+    <script src="js/math.js"></script>
+    <script src="js/sha256.js"></script>
+
+    <script>
+        function pageLoaded() {
+            scrollBkg();
+            setInterval(scrollBkg, 2000);
+
+            if (typeof (worker) === undefined) {
+                alert('Webworker is not supported in your browser, sorry.');
+                return false;
+            }
+
+            displayFile();
+        }
+
+        var backgroundPos = Math.random() * 900;
+
+        function scrollBkg() {
+            if (backgroundPos == 900) {
+                backgroundPos = 0;
+            }
+
+            backgroundPos += 1;
+
+            document.getElementById("header").style.backgroundPosition =
+                "0px " +
+                (backgroundPos).toString() + "px";
+        }
+
+        function toggleWorker() {
+            var button = document.getElementById("toggleWorkerButton");
+            var dropdown = document.getElementById("workerDropdown");
+            var workerFile = dropdown.options[dropdown.selectedIndex].value;
+
+            if (workerFile.indexOf(".htm") > 0) {
+                addToDebug("Popup: " + workerFile);
+                window.open(workerFile);
+            } else if (button.innerHTML != "Start worker") {
+                worker.terminate();
+                working = false;
+                button.innerHTML = "Start worker";
+            } else {
+                document.getElementById('percentComplete').style.width = "0px";
+                button.innerHTML = "Kill worker";
+                addToDebug("Starting thread for: " + workerFile);
+                var now = new Date();
+                loadWorker(workerFile + "?" + now.getTime());
+            }
+        }
+
+        function displayFile() {
+            if (working) {
+                toggleWorker();
+            }
+
+            document.getElementById('percentComplete').style.width = "0px";
+            var button = document.getElementById("toggleWorkerButton");
+            var dropdown = document.getElementById("workerDropdown");
+            var workerFile = dropdown.options[dropdown.selectedIndex].value;
+
+            if (workerFile.indexOf(".htm") > 0) {
+                button.innerHTML = "New window";
+            } else {
+                button.innerHTML = "Start worker";
+
+                addToDebug("Loading: " + workerFile);
+
+                var xhr = new XMLHttpRequest();
+                var now = new Date();
+                xhr.open('GET', workerFile + "?" + now.getTime(), true);
+                xhr.onreadystatechange = function () {
+                    if (this.readyState !== 4) return;
+                    if (this.status !== 200) return;
+
+                    var d = document.getElementById('debug');
+
+                    document.getElementById('status').innerHTML = "Loaded: " + workerFile;
+                    d.innerHTML = this.responseText;
+                    d.scrollTop = 0;
+
+                    //if the worker posts an answer, enable the run button
+                    if (d.innerHTML.indexOf("answerNumber:") > 0 && d.innerHTML.indexOf("correctAnswerHash:")) {
+                        document.getElementById('toggleWorkerButton').disabled = false;
+                        document.getElementById('toggleWorkerButton').innerHTML = "Start worker";
+                    } else {
+                        document.getElementById('toggleWorkerButton').disabled = true;
+                        document.getElementById('toggleWorkerButton').innerHTML = "Review only";
+                    }
+
+                    //write the description manually
+                    var ts = d.innerHTML.indexOf("mainText:");
+                    if (ts > 0) {
+                        ts += 11;
+                        var t = d.innerHTML.substring(ts, d.innerHTML.indexOf('"', ts));
+                        document.getElementById("main").innerHTML = t;
+                    }
+
+                };
+                xhr.send();
+            }
+        }
+
+    </script>
+    <link rel="stylesheet" type="text/css" href="css/main.css" />
+</head>
+
+<body onload="pageLoaded()">
+    <div id="header"><h1>Project Euler JavaScript Playground</h1></div>
+    
+    <div id="main">Choose a script and start the worker to see results.</div>
+
+    <div id="controls">
+        <select id="workerDropdown" onchange="displayFile()">
+            <option value="content/intro.txt">Introduction</option>
+            <option value="js/workerTest.js">Test Worker</option>
+            <option value="js/1.js">Euler #1 - Sum of 3's & 5's</option>
+            <option value="js/2.js">Euler #2 - Even Fibonacci's</option>
+            <option value="js/3.js">Euler #3 - Prime Factors</option>
+            <option value="js/4.js">Euler #4 - Largest palindrome product</option>
+            <option value="js/5.js">Euler #5 - Smallest multiple</option>
+            <option value="js/23.js">Euler #23 - Sum abundant</option>
+            <option value="js/24.js">Euler #24 - Lexicographic numbers (slow)</option>
+            <option value="js/24b.js">Euler #24 - Lexicographic numbers (optimized)</option>
+            <option value="js/36.js">Euler #36 - Palindromes</option>
+            <option value="js/36b.js">Euler #36 - Palindromes (expanded)</option>
+            <option value="js/43.js">Euler #43 - Substring divisibility</option>
+            <option value="js/math.js">math.js - Math library (reference only)</option>
+            <option value="js/worker.js">worker.js - JS worker library (reference only)</option>
+            <option value="content/tests.htm">Run QUnit tests (in new window)</option>
+        </select>
+        <button id="toggleWorkerButton" onclick="toggleWorker()">Start worker</button>
+        <hr />
+    </div>
+
+    <div id="status" onchange="scrollBkg();"></div>
+    <div id="percent"><div id="percentComplete">0</div></div>
+    <div id="debug" onchange="scrollBkg();">
+        <pre></pre>
+    </div>
+</body>
+
+</html>
